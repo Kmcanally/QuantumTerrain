@@ -111,7 +111,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--qubits-per-axis", type=int, default=8)
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--beta", type=float, default=3.0, help="fractal falloff; higher is smoother")
+    parser.add_argument("--beta", type=float, default=5.5, help="fractal falloff; higher is smoother")
     parser.add_argument("--entangle", type=float, default=1.0, help="controlled-phase strength, 0 to 1")
     parser.add_argument("--gamma", type=float, default=0.5, help="height = probability^gamma")
     parser.add_argument("--shots", type=int, default=None, help="sample instead of exact probabilities")
