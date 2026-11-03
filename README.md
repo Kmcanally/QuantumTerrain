@@ -64,6 +64,21 @@ server running, since the panel updates whenever a new terrain arrives. Turn on
 Each server result is a real circuit output. Unity glides between them with a
 short height blend, so the frames in between are interpolated for display.
 
+## Quantum vs classical
+
+```
+.venv\Scripts\python python\compare_classical.py
+```
+
+Compares 200 quantum terrains with two classical generators: one using the same
+spectrum with independent random phases, and standard fractal noise (fBm). It
+reports speed, eight terrain statistics, and whether a classifier can tell the
+sets apart. A zero-entanglement set and a second classical batch act as positive
+and negative controls.
+
+On 2 Nov 2026, fully entangled quantum terrain was indistinguishable from both
+(46.5% and 53.0%, where 50% is chance) and about 17 times slower to generate.
+
 ## Tests
 
 ```
