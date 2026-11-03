@@ -19,7 +19,7 @@ grid, and as it rises towards 1 the grid dissolves into natural landforms.
 .venv\Scripts\python python\generate_terrain.py --seed 7 --entangle 1.0
 ```
 
-Options: `--qubits-per-axis`, `--beta` (higher is smoother), `--gamma`, `--shots`
+Options: `--qubits-per-axis`, `--beta` (higher is smoother), `--detail`, `--gamma`, `--shots`
 (sample from measurements instead of exact probabilities), `--name`, `--out`.
 
 ## Import into Unity
@@ -46,9 +46,10 @@ a finite number of shots instead of exact probabilities.
 landforms. **Sweep Measurements** animates from 10^3 to 10^9 shots, from scattered
 spikes to the exact terrain. The preset buttons jump to good starting points.
 
-A seed keeps its landforms at every resolution. At the default smoothness,
-128x128 and 1024x1024 are effectively the same terrain, so lower `--beta` for
-more fine detail rather than adding qubits.
+A seed keeps its landforms at every resolution. `--beta` sets how smooth the
+large landforms are, and `--detail` (0 to 1, default 0.75) adds small-scale
+texture on top without moving them. With detail on, 512x512 shows texture that
+256x256 can't, so it's worth the extra qubits for close-up views.
 
 ## Presentation view
 

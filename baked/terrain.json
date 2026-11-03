@@ -4,8 +4,9 @@
   "qubits": 16,
   "seed": 7,
   "beta": 5.5,
+  "detail": 0.75,
   "entangle": 1.0,
   "gamma": 0.5,
   "shots": null,
-  "entanglement_entropy_bits": 0.3914
+  "entanglement_entropy_bits": 0.3923
 }

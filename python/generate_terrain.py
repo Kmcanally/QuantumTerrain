@@ -26,12 +26,25 @@ from qiskit_aer import AerSimulator
 
 MAX_BITS_PER_AXIS = 12
 
+# Above this many cycles per map, `detail` flattens the falloff so small scales
+# keep more energy. At detail 1 the fine falloff is DETAIL_RANGE below beta.
+DETAIL_START_CYCLES = 16
+DETAIL_RANGE = 2.0
+DEFAULT_DETAIL = 0.75
 
-def fractal_spectrum(k, beta):
-    """Return normalized amplitudes for a 2^k x 2^k isotropic 1/f^beta spectrum."""
+
+def fractal_spectrum(k, beta, detail=DEFAULT_DETAIL):
+    """Return normalized amplitudes for a 2^k x 2^k isotropic 1/f^beta spectrum.
+
+    Frequencies are in cycles per map, so the knee sits at the same landform size
+    at every resolution and higher resolutions add finer detail.
+    """
     freq = np.fft.fftfreq(2**k) * 2**k
     fy, fx = np.meshgrid(freq, freq, indexing="ij")
-    amplitudes = (1.0 + np.hypot(fx, fy)) ** (-beta / 2.0)
+    f = 1.0 + np.hypot(fx, fy)
+    knee = 1.0 + DETAIL_START_CYCLES
+    fine_beta = beta - DETAIL_RANGE * detail
+    amplitudes = np.where(f <= knee, f ** (-beta / 2.0), knee ** (-beta / 2.0) * (f / knee) ** (-fine_beta / 2.0))
     return (amplitudes / np.linalg.norm(amplitudes)).astype(complex)
 
 
@@ -81,11 +94,11 @@ def remap_signs(circuit, k):
             circuit.cx(sign, q)
 
 
-def build_circuit(k, beta, seed, entangle):
+def build_circuit(k, beta, seed, entangle, detail=DEFAULT_DETAIL):
     """Assemble the full circuit: spectrum, phases, then a QFT on each axis."""
     n = 2 * k
     circuit = QuantumCircuit(n)
-    circuit.set_statevector(fractal_spectrum(k, beta).ravel())
+    circuit.set_statevector(fractal_spectrum(k, beta, detail).ravel())
     circuit.compose(phase_layer(k, seed, entangle), inplace=True)
     circuit.append(QFTGate(k), range(k))
     circuit.append(QFTGate(k), range(k, n))
@@ -127,9 +140,9 @@ def to_heightmap(probabilities, k, gamma):
     return np.clip((height - low) / (high - low), 0.0, 1.0)
 
 
-def generate(k, beta, seed, entangle, gamma, shots=None):
+def generate(k, beta, seed, entangle, gamma, shots=None, detail=DEFAULT_DETAIL):
     """Run the whole pipeline and return (heightmap, entanglement entropy)."""
-    circuit = build_circuit(k, beta, seed, entangle)
+    circuit = build_circuit(k, beta, seed, entangle, detail)
     probabilities, state = simulate(circuit, shots, seed)
     return to_heightmap(probabilities, k, gamma), entanglement_entropy(state, k)
 
@@ -152,6 +165,7 @@ def main():
     parser.add_argument("--qubits-per-axis", type=int, default=8)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--beta", type=float, default=5.5, help="fractal falloff; higher is smoother")
+    parser.add_argument("--detail", type=float, default=DEFAULT_DETAIL, help="extra fine detail, 0 to 1")
     parser.add_argument("--entangle", type=float, default=1.0, help="controlled-phase strength, 0 to 1")
     parser.add_argument("--gamma", type=float, default=0.5, help="height = probability^gamma")
     parser.add_argument("--shots", type=int, default=None, help="sample instead of exact probabilities")
@@ -160,7 +174,7 @@ def main():
     args = parser.parse_args()
 
     k = args.qubits_per_axis
-    height, entropy = generate(k, args.beta, args.seed, args.entangle, args.gamma, args.shots)
+    height, entropy = generate(k, args.beta, args.seed, args.entangle, args.gamma, args.shots, args.detail)
 
     metadata = {
         "name": args.name,
@@ -168,6 +182,7 @@ def main():
         "qubits": 2 * k,
         "seed": args.seed,
         "beta": args.beta,
+        "detail": args.detail,
         "entangle": args.entangle,
         "gamma": args.gamma,
         "shots": args.shots,

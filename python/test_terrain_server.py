@@ -37,7 +37,13 @@ def test_shots_request_returns_a_full_map(base_url):
     assert len(response.read()) == 2 * 16 * 16
 
 
-@pytest.mark.parametrize("query", ["qubits_per_axis=99", "gamma=0", "shots=0", "beta=oops"])
+def test_detail_parameter_reaches_the_generator(base_url):
+    response = urllib.request.urlopen(f"{base_url}/terrain?qubits_per_axis=6&detail=0.2")
+    height, _ = g.generate(6, 5.5, 7, 1.0, 0.5, detail=0.2)
+    assert response.read() == g.to_r16(height)
+
+
+@pytest.mark.parametrize("query", ["qubits_per_axis=99", "gamma=0", "shots=0", "beta=oops", "detail=2"])
 def test_invalid_parameters_are_rejected(base_url, query):
     with pytest.raises(urllib.error.HTTPError) as error:
         urllib.request.urlopen(f"{base_url}/terrain?{query}")

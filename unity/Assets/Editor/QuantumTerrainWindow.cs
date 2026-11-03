@@ -27,6 +27,7 @@ public class QuantumTerrainWindow : EditorWindow
     [SerializeField] int qubitsPerAxis = 8;
     [SerializeField] int seed = 7;
     [SerializeField] float beta = 5.5f;
+    [SerializeField] float detail = 0.75f;
     [SerializeField] float entangle = 1f;
     [SerializeField] float gamma = 0.5f;
     [SerializeField] bool useShots;
@@ -49,12 +50,12 @@ public class QuantumTerrainWindow : EditorWindow
 
     static readonly Preset[] Presets =
     {
-        new Preset("Mirrored Grid", 0f, 5.5f, 0.5f, 3),
-        new Preset("Symmetry Breaking", 0.25f, 5.5f, 0.5f, 3),
-        new Preset("Alpine Range", 1f, 5.5f, 0.5f, 7),
-        new Preset("Rolling Hills", 1f, 7f, 0.5f, 12),
-        new Preset("Rugged Peaks", 1f, 4.5f, 0.5f, 12),
-        new Preset("Measurement Noise", 1f, 5.5f, 0.5f, 7, 7f),
+        new Preset("Mirrored Grid", 0f, 5.5f, 0.75f, 0.5f, 3),
+        new Preset("Symmetry Breaking", 0.25f, 5.5f, 0.75f, 0.5f, 3),
+        new Preset("Alpine Range", 1f, 5.5f, 0.75f, 0.5f, 7),
+        new Preset("Rolling Hills", 1f, 7f, 0.25f, 0.5f, 12),
+        new Preset("Rugged Peaks", 1f, 4.5f, 0f, 0.5f, 12),
+        new Preset("Measurement Noise", 1f, 5.5f, 0f, 0.5f, 7, 7f),
     };
 
     class Preset
@@ -62,15 +63,17 @@ public class QuantumTerrainWindow : EditorWindow
         public readonly string Name;
         public readonly float Entangle;
         public readonly float Beta;
+        public readonly float Detail;
         public readonly float Gamma;
         public readonly int Seed;
         public readonly float? ShotsExponent;
 
-        public Preset(string name, float entangle, float beta, float gamma, int seed, float? shotsExponent = null)
+        public Preset(string name, float entangle, float beta, float detail, float gamma, int seed, float? shotsExponent = null)
         {
             Name = name;
             Entangle = entangle;
             Beta = beta;
+            Detail = detail;
             Gamma = gamma;
             Seed = seed;
             ShotsExponent = shotsExponent;
@@ -109,6 +112,7 @@ public class QuantumTerrainWindow : EditorWindow
         EditorGUI.BeginChangeCheck();
         entangle = EditorGUILayout.Slider("Entanglement", entangle, 0f, 1f);
         beta = EditorGUILayout.Slider("Smoothness (beta)", beta, 2f, 8f);
+        detail = EditorGUILayout.Slider("Fine detail", detail, 0f, 1f);
         gamma = EditorGUILayout.Slider("Height curve (gamma)", gamma, 0.25f, 2f);
         seed = EditorGUILayout.IntField("Seed", seed);
         qubitsPerAxis = EditorGUILayout.IntSlider("Qubits per axis", qubitsPerAxis, 6, 9);
@@ -181,6 +185,7 @@ public class QuantumTerrainWindow : EditorWindow
         sweep = Sweep.None;
         entangle = preset.Entangle;
         beta = preset.Beta;
+        detail = preset.Detail;
         gamma = preset.Gamma;
         seed = preset.Seed;
         useShots = preset.ShotsExponent.HasValue;
@@ -325,7 +330,7 @@ public class QuantumTerrainWindow : EditorWindow
     string BuildUrl()
     {
         string url = $"{ServerUrl}/terrain?qubits_per_axis={qubitsPerAxis}&seed={seed}"
-            + $"&beta={Format(beta)}&entangle={Format(entangle)}&gamma={Format(gamma)}";
+            + $"&beta={Format(beta)}&detail={Format(detail)}&entangle={Format(entangle)}&gamma={Format(gamma)}";
         if (useShots)
         {
             url += $"&shots={RequestedShots()}";

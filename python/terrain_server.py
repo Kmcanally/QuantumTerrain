@@ -1,7 +1,7 @@
 """Serve quantum heightmaps to the Unity editor over a local HTTP connection.
 
 GET /terrain returns the raw 16-bit heightmap for the query parameters
-qubits_per_axis, seed, beta, entangle, gamma and shots. The entanglement
+qubits_per_axis, seed, beta, entangle, gamma, shots and detail. The entanglement
 entropy and generation time come back in response headers.
 """
 
@@ -27,13 +27,16 @@ def parse_terrain_query(query):
     entangle = read("entangle", float, 1.0)
     gamma = read("gamma", float, 0.5)
     shots = read("shots", int, None)
+    detail = read("detail", float, g.DEFAULT_DETAIL)
+    if not 0 <= detail <= 1:
+        raise ValueError("detail must be between 0 and 1")
     if not 2 <= k <= 10:
         raise ValueError("qubits_per_axis must be between 2 and 10")
     if beta < 0 or gamma <= 0:
         raise ValueError("beta must not be negative and gamma must be positive")
     if shots is not None and shots < 1:
         raise ValueError("shots must be positive")
-    return k, beta, read("seed", int, 7), entangle, gamma, shots
+    return k, beta, read("seed", int, 7), entangle, gamma, shots, detail
 
 
 class TerrainHandler(BaseHTTPRequestHandler):

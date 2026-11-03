@@ -55,6 +55,20 @@ def test_a_seed_keeps_its_terrain_at_higher_resolution():
     assert np.corrcoef(coarse.ravel(), downsampled.ravel())[0, 1] > 0.99
 
 
+def test_detail_roughens_small_scales_but_keeps_landforms():
+    smooth, _ = g.generate(8, 5.5, SEED, 1.0, 0.5, detail=0.0)
+    detailed, _ = g.generate(8, 5.5, SEED, 1.0, 0.5, detail=1.0)
+
+    def landforms(h):
+        return h.reshape(32, 8, 32, 8).mean(axis=(1, 3)).ravel()
+
+    def roughness(h):
+        return np.abs(np.diff(h, axis=1)).mean()
+
+    assert np.corrcoef(landforms(smooth), landforms(detailed))[0, 1] > 0.98
+    assert roughness(detailed) > 1.1 * roughness(smooth)
+
+
 def test_entropy_of_product_state_is_zero():
     state = np.kron(np.array([0.6, 0.8]), np.array([0.8, 0.6]))
     assert abs(g.entanglement_entropy(state, 1)) < 1e-9
