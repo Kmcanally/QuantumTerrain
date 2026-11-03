@@ -20,31 +20,18 @@ public static class QuantumTerrainImporter
             return;
         }
 
-        Apply(File.ReadAllBytes(rawPath));
+        Apply(Decode(File.ReadAllBytes(rawPath)));
         AssetDatabase.SaveAssets();
         Debug.Log($"Imported quantum heightmap from {rawPath}");
     }
 
-    /// <summary>Writes a square 16-bit little-endian heightmap to the scene's terrain.</summary>
-    public static void Apply(byte[] bytes)
+    /// <summary>Reads a square 16-bit little-endian heightmap into Unity's 2^n + 1 grid.</summary>
+    public static float[,] Decode(byte[] bytes)
     {
         int side = Mathf.RoundToInt(Mathf.Sqrt(bytes.Length / 2));
 
-        TerrainData data = AssetDatabase.LoadAssetAtPath<TerrainData>(TerrainDataPath);
-        if (data == null)
-        {
-            data = new TerrainData();
-            AssetDatabase.CreateAsset(data, TerrainDataPath);
-        }
-
-        // Unity needs a 2^n + 1 grid. Repeating the first row and column works
-        // because the QFT output wraps around, so the map tiles seamlessly.
-        if (data.heightmapResolution != side + 1)
-        {
-            data.heightmapResolution = side + 1;
-        }
-        data.size = new Vector3(TerrainWidth, TerrainHeight, TerrainWidth);
-
+        // Repeating the first row and column works because the QFT output wraps
+        // around, so the map tiles seamlessly.
         var heights = new float[side + 1, side + 1];
         for (int y = 0; y <= side; y++)
         {
@@ -54,7 +41,42 @@ public static class QuantumTerrainImporter
                 heights[y, x] = System.BitConverter.ToUInt16(bytes, offset) / 65535f;
             }
         }
-        data.SetHeights(0, 0, heights);
+        return heights;
+    }
+
+    /// <summary>
+    /// Writes heights to the scene's terrain. Preview updates skip Unity's LOD
+    /// rebuild so they can run every frame, so finish with a full update.
+    /// </summary>
+    public static void Apply(float[,] heights, bool preview = false)
+    {
+        int side = heights.GetLength(0) - 1;
+
+        TerrainData data = AssetDatabase.LoadAssetAtPath<TerrainData>(TerrainDataPath);
+        if (data == null)
+        {
+            data = new TerrainData();
+            AssetDatabase.CreateAsset(data, TerrainDataPath);
+        }
+
+        if (data.heightmapResolution != side + 1)
+        {
+            data.heightmapResolution = side + 1;
+        }
+        var size = new Vector3(TerrainWidth, TerrainHeight, TerrainWidth);
+        if (data.size != size)
+        {
+            data.size = size;
+        }
+
+        if (preview)
+        {
+            data.SetHeightsDelayLOD(0, 0, heights);
+        }
+        else
+        {
+            data.SetHeights(0, 0, heights);
+        }
 
         TerrainLayer[] layers = data.terrainLayers;
         if (layers.Length != QuantumTerrainSplat.LayerCount || System.Array.Exists(layers, layer => layer == null))
@@ -75,7 +97,14 @@ public static class QuantumTerrainImporter
             go.name = TerrainName;
             terrain = go.GetComponent<Terrain>();
         }
-        terrain.terrainData = data;
-        terrain.GetComponent<TerrainCollider>().terrainData = data;
+        if (terrain.terrainData != data)
+        {
+            terrain.terrainData = data;
+        }
+        var collider = terrain.GetComponent<TerrainCollider>();
+        if (collider.terrainData != data)
+        {
+            collider.terrainData = data;
+        }
     }
 }

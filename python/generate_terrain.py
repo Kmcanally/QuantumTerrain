@@ -5,8 +5,8 @@ The register holds two coordinates: k qubits for x and k qubits for y, so a
 
 1. Load a fractal spectrum: amplitude falls off with spatial frequency, which
    is what gives terrain large landforms with fine detail on top.
-2. Apply a diagonal phase layer. RZ alone leaves the map a grid of axis-aligned
-   lines, and the controlled-phase gates are what dissolve it into landforms.
+2. Apply a diagonal phase layer. RZ alone leaves the map mirrored and aligned
+   to the axes, and the controlled-phase gates dissolve that into landforms.
 3. Apply a QFT to each axis. Every frequency interferes, and the pattern of
    constructive and destructive interference becomes the terrain.
 
@@ -24,6 +24,8 @@ from qiskit import QuantumCircuit, transpile
 from qiskit.circuit.library import QFTGate
 from qiskit_aer import AerSimulator
 
+MAX_BITS_PER_AXIS = 12
+
 
 def fractal_spectrum(k, beta):
     """Return normalized amplitudes for a 2^k x 2^k isotropic 1/f^beta spectrum."""
@@ -34,16 +36,49 @@ def fractal_spectrum(k, beta):
 
 
 def phase_layer(k, seed, entangle):
-    """Build the diagonal phase circuit. `entangle` scales the controlled phases."""
+    """Build the diagonal phase circuit. `entangle` scales the controlled phases.
+
+    Negative frequencies are stored in two's complement, so small ones have nearly
+    every bit set and would pick up phase from every gate. Remapping them with CX
+    gates leaves low frequencies with few set bits, which keeps the terrain moving
+    smoothly as `entangle` changes.
+    """
     n = 2 * k
-    rng = np.random.default_rng(seed)
+    single, pairs = phase_angles(k, seed)
     circuit = QuantumCircuit(n, name="phases")
+    remap_signs(circuit, k)
     for q in range(n):
-        circuit.rz(rng.uniform(0, 2 * np.pi), q)
+        circuit.rz(single[q], q)
     for a in range(n):
         for b in range(a + 1, n):
-            circuit.cp(entangle * rng.uniform(0, 2 * np.pi), a, b)
+            circuit.cp(entangle * pairs[a, b], a, b)
+    remap_signs(circuit, k)
     return circuit
+
+
+def phase_angles(k, seed):
+    """Return (RZ angles, controlled-phase angles) for a register of k qubits per axis.
+
+    Angles belong to a frequency bit, not a qubit position, so a seed keeps its
+    landforms at every resolution and extra qubits only add finer detail.
+    """
+    rng = np.random.default_rng(seed)
+    all_single = rng.uniform(0, 2 * np.pi, size=2 * MAX_BITS_PER_AXIS)
+    all_pairs = rng.uniform(0, 2 * np.pi, size=(2 * MAX_BITS_PER_AXIS, 2 * MAX_BITS_PER_AXIS))
+    all_pairs = np.triu(all_pairs, 1) + np.triu(all_pairs, 1).T
+
+    # The sign bit is always the top qubit of an axis, so it gets slot 0.
+    slots = [(i + 1) % k for i in range(k)]
+    slots = np.array(slots + [slot + MAX_BITS_PER_AXIS for slot in slots])
+    return all_single[slots], all_pairs[np.ix_(slots, slots)]
+
+
+def remap_signs(circuit, k):
+    """Flip each axis's lower bits when its sign bit is set. Undoes itself."""
+    for offset in (0, k):
+        sign = offset + k - 1
+        for q in range(offset, sign):
+            circuit.cx(sign, q)
 
 
 def build_circuit(k, beta, seed, entangle):
@@ -58,7 +93,7 @@ def build_circuit(k, beta, seed, entangle):
 
 
 def simulate(circuit, shots=None, seed=0):
-    """Run on Aer and return (probabilities, statevector). Shots may be None."""
+    """Run on Aer and return (probabilities, statevector). Shots=None means exact."""
     backend = AerSimulator(method="statevector")
     exact = circuit.copy()
     exact.save_statevector()
@@ -66,20 +101,14 @@ def simulate(circuit, shots=None, seed=0):
     # of a saved statevector. Level 1 keeps the qubit order intact.
     result = backend.run(transpile(exact, backend, optimization_level=1)).result()
     state = np.asarray(result.get_statevector())
+    probabilities = np.abs(state) ** 2
     if shots is None:
-        return np.abs(state) ** 2, state
+        return probabilities, state
 
-    sampled = circuit.copy()
-    sampled.measure_all()
-    counts = (
-        backend.run(transpile(sampled, backend, optimization_level=1), shots=shots, seed_simulator=seed)
-        .result()
-        .get_counts()
-    )
-    probabilities = np.zeros(2**circuit.num_qubits)
-    for bits, count in counts.items():
-        probabilities[int(bits, 2)] = count / shots
-    return probabilities, state
+    # Drawing every shot at once matches the distribution of Aer's sampling, but
+    # stays fast at the billions of shots needed to approach the exact map.
+    rng = np.random.default_rng(seed)
+    return rng.multinomial(shots, probabilities / probabilities.sum()) / shots, state
 
 
 def entanglement_entropy(state, k):

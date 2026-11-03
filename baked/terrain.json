@@ -3,9 +3,9 @@
   "resolution": 256,
   "qubits": 16,
   "seed": 7,
-  "beta": 5.0,
+  "beta": 5.5,
   "entangle": 1.0,
   "gamma": 0.5,
   "shots": null,
-  "entanglement_entropy_bits": 0.5779
+  "entanglement_entropy_bits": 0.3914
 }

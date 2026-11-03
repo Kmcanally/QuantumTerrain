@@ -42,6 +42,27 @@ Then choose **Quantum Terrain > Live Controls** in Unity. Moving a slider
 regenerates the terrain. Turn on **Sample measurements** to build the map from
 a finite number of shots instead of exact probabilities.
 
+**Sweep Entanglement** animates from a mirrored, axis-aligned map to natural
+landforms. **Sweep Measurements** animates from 10^3 to 10^9 shots, from scattered
+spikes to the exact terrain. The preset buttons jump to good starting points.
+
+A seed keeps its landforms at every resolution. At the default smoothness,
+128x128 and 1024x1024 are effectively the same terrain, so lower `--beta` for
+more fine detail rather than adding qubits.
+
+## Presentation view
+
+Choose **Quantum Terrain > Set Up Presentation View** once per scene, then press
+Play. The camera orbits the terrain, and a panel shows the entanglement, qubits,
+measurements and entropy with a short caption. Keep Live Controls open and the
+server running, since the panel updates whenever a new terrain arrives. Turn on
+**Play Maximized** in the Game view for a clean screen.
+
+## How the frames are made
+
+Each server result is a real circuit output. Unity glides between them with a
+short height blend, so the frames in between are interpolated for display.
+
 ## Tests
 
 ```
