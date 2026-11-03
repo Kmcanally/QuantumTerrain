@@ -24,7 +24,23 @@ Options: `--qubits-per-axis`, `--beta` (higher is smoother), `--gamma`, `--shots
 
 ## Import into Unity
 
-Open `unity/` in Unity Hub, then choose **Quantum Terrain > Import Baked Heightmap**.
+Open `unity/` in Unity Hub, then choose **Quantum Terrain > Import Baked Heightmap**
+and pick a `.r16` file from `baked/`.
+
+Every import or live update also colours the terrain by height and slope. The
+thresholds are at the top of `QuantumTerrainSplat.cs`.
+
+## Live controls
+
+Start the server and leave it running:
+
+```
+.venv\Scripts\python python\terrain_server.py
+```
+
+Then choose **Quantum Terrain > Live Controls** in Unity. Moving a slider
+regenerates the terrain. Turn on **Sample measurements** to build the map from
+a finite number of shots instead of exact probabilities.
 
 ## Tests
 

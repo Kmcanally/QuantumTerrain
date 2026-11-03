@@ -98,11 +98,22 @@ def to_heightmap(probabilities, k, gamma):
     return np.clip((height - low) / (high - low), 0.0, 1.0)
 
 
+def generate(k, beta, seed, entangle, gamma, shots=None):
+    """Run the whole pipeline and return (heightmap, entanglement entropy)."""
+    circuit = build_circuit(k, beta, seed, entangle)
+    probabilities, state = simulate(circuit, shots, seed)
+    return to_heightmap(probabilities, k, gamma), entanglement_entropy(state, k)
+
+
+def to_r16(height):
+    """Encode a heightmap as 16-bit little-endian bytes, the format Unity reads."""
+    return np.round(height * 65535).astype("<u2").tobytes()
+
+
 def bake(height, out_dir, name, metadata):
     """Write the 16-bit little-endian heightmap, a PNG preview and metadata."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    quantized = np.round(height * 65535).astype("<u2")
-    (out_dir / f"{name}.r16").write_bytes(quantized.tobytes())
+    (out_dir / f"{name}.r16").write_bytes(to_r16(height))
     Image.fromarray(np.round(height * 255).astype(np.uint8)).save(out_dir / f"{name}.png")
     (out_dir / f"{name}.json").write_text(json.dumps(metadata, indent=2) + "\n")
 
@@ -120,10 +131,7 @@ def main():
     args = parser.parse_args()
 
     k = args.qubits_per_axis
-    circuit = build_circuit(k, args.beta, args.seed, args.entangle)
-    probabilities, state = simulate(circuit, args.shots, args.seed)
-    height = to_heightmap(probabilities, k, args.gamma)
-    entropy = entanglement_entropy(state, k)
+    height, entropy = generate(k, args.beta, args.seed, args.entangle, args.gamma, args.shots)
 
     metadata = {
         "name": args.name,
